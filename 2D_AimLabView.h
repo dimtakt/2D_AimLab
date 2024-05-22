@@ -12,6 +12,7 @@
  #include <ctime>
 
 
+
 class CMy2DAimLabView : public CView
 {
 protected: // serialization에서만 만들어집니다.
@@ -50,6 +51,8 @@ protected:
 public:
 	// *********************************************************
 
+	bool isOpened;
+	
 	int windowStatus;
 	int circRad;
 	int score;
@@ -64,6 +67,13 @@ public:
 
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	void refreshCirc();
+
+	void window_Main();
+	void window_Game();
+	void window_Rank();	
+
+	int elapsed_time;
+	int left_time;
 
 	// *********************************************************
 };
