@@ -27,24 +27,33 @@ BEGIN_MESSAGE_MAP(CMy2DAimLabView, CView)
 	ON_COMMAND(ID_FILE_PRINT, &CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CView::OnFilePrintPreview)
+	ON_WM_LBUTTONDOWN()
 END_MESSAGE_MAP()
 
 // CMy2DAimLabView 생성/소멸
 
 CMy2DAimLabView::CMy2DAimLabView() noexcept
 {
+	// *********************************************************
 	// TODO: 여기에 생성 코드를 추가합니다.
 	// *********************************************************
 
-	// 현재 표시할 화면이 무엇인지 제어 (int)
-	// 예시)  0:메인 1:게임화면 2:랭킹..
-	windowStatus = 0;
+	// 코드 작성 중 확인용으로 변경함. 0을 기본값으로 둘 것
+	windowStatus = 1;				// 현재 표시할 화면이 무엇인지 제어 (int)
+									// 예시)  0:메인 1:게임화면 2:랭킹..
 
-	// 랜덤 원이 생성될 위치 배열 (vector<CPoint>)
-	aimMatrix;
+	circMatrix;						// 랜덤 원이 생성될 위치 배열 정보 (vector<CPoint>)
+									// 실제 원의 정보를 담은 게 아님
+	circles;						// 랜덤 원의 정보가 인덱스를 통해 저장되는 곳 (vector<CPoint>)
 
-	// 랜덤 초기화
-	srand((unsigned)time(NULL));		
+	isExist;						// 랜덤 원이 해당 circMatrix 인덱스에 존재하는지 여부 (vector<bool>)
+
+	srand((unsigned)time(NULL));	// 랜덤 초기화
+
+	circRad = 40;					// 원의 반지름
+	score = 0;						// 현재 점수
+	//scoreAdd = 0;					// 현재 원의 번호이자 추가 점수
+	genAmount = 3;					// 존재할 원 갯수
 
 
 	// *********************************************************
@@ -71,45 +80,111 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 	if (!pDoc)
 		return;
 
+	// *********************************************************
 	// TODO: 여기에 원시 데이터에 대한 그리기 코드를 추가합니다.
 	// *********************************************************
 
 	CClientDC dc(this);
+
+	CRect rc;
+	GetClientRect(&rc);
+
+	//	circMatrix 위치 정의, isExist 기본값 정의
+	for (int i = 0; i < 25; i++) {
+
+		isExist.push_back(false);
+		
+		// 임시로 위치 잘 나오는지 확인용, 확인 후 삭제
+		//if (rand() % 2 == 0)		isExist.push_back(true);
+		//else						isExist.push_back(false);
+		
+		circMatrix.push_back(CPoint(0, 0));
+		
+		if		(i / 5 == 0) { circMatrix[i].x = rc.right / 2 - 200; }
+		else if (i / 5 == 1) { circMatrix[i].x = rc.right / 2 - 100; }
+		else if (i / 5 == 2) { circMatrix[i].x = rc.right / 2 - 0; }
+		else if (i / 5 == 3) { circMatrix[i].x = rc.right / 2 + 100; }
+		else if (i / 5 == 4) { circMatrix[i].x = rc.right / 2 + 200; }
+
+		if		(i % 5 == 0) { circMatrix[i].y = rc.bottom / 2 - 200; }
+		else if (i % 5 == 1) { circMatrix[i].y = rc.bottom / 2 - 100; }
+		else if (i % 5 == 2) { circMatrix[i].y = rc.bottom / 2 - 0; }
+		else if (i % 5 == 3) { circMatrix[i].y = rc.bottom / 2 + 100; }
+		else if (i % 5 == 4) { circMatrix[i].y = rc.bottom / 2 + 200; }
+	}
+
+	//for (int i = 0; i < 25; i++) {
+	//	if (isExist[i]) {
+	//		dc.Ellipse(	circMatrix[i].x - circRad,
+	//					circMatrix[i].y - circRad,
+	//					circMatrix[i].x + circRad,
+	//					circMatrix[i].y + circRad);
+	//	}
+	//}
 	
+		
 	/**
 	*	windowStatus == 0 (현재 화면이 메인이라면)
 	*/
 	if (windowStatus == 0) {
 		
-		// 위치 나중에 조절하기
 		CString mainLogo;
-		CString mainMessage;
+		CString mainMessage1;
 		CString mainMessage2;
 
 		// 로고 출력
 		mainLogo.Format(L"2D AimLab");
-		mainMessage.Format(L"게임을 시작하시려면 (미정) 버튼을 누르거나");
-		mainMessage2.Format(L"상단의(미정2) 메뉴를 통해 시작해주세요.");
+		mainMessage1.Format(L"게임을 시작하시려면 (단축키명) 버튼을 누르거나");
+		mainMessage2.Format(L"상단의(메뉴명) 메뉴를 통해 시작해주세요.");
 		// 게임 설명도 추가
 
-		CRect rect(	50 - 20,
-					50 - 20,
-					50 + 100,
-					50 + 100	);
-		CRect rect2(	100 - 20,
-						100 - 20,
-						100 + 500,
-						100 + 200	);
-		CRect rect3(	200 - 20,
-						200 - 20,
-						200 + 500,
-						200 + 200	);
+		CRect rect(		rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.3,
+						rc.right / 2 + 500,	rc.bottom / 2 - rc.bottom * 0.1);
+		CRect rect2(	rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0,
+						rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 20);
+		CRect rect3(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 20,
+						rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 40);
 
 		dc.DrawText(mainLogo, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
-		dc.DrawText(mainMessage, rect2, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+		dc.DrawText(mainMessage1, rect2, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 		dc.DrawText(mainMessage2, rect3, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 	}
 
+
+	/**
+	*	windowStatus == 1 (현재 화면이 게임화면이라면)
+	*/
+	else if (windowStatus == 1) {
+
+		int numOrder = 0;		// 클릭해야 하는 숫자
+
+		// 최초 원 생성
+		for (int i = 0; i < genAmount; i++) {
+			int randNum = rand() % 25;
+			if (isExist[randNum]) {
+				i--;
+			}
+			else if (!isExist[randNum]) {
+				isExist[randNum] = true;
+				CPoint temp = circMatrix[randNum];
+				circles.push_back(temp);
+			}
+		}
+		refreshCirc();
+
+
+
+
+	}
+
+	/**
+	*	windowStatus == 2 (현재 화면이 랭킹화면이라면)
+	*/
+	else if (windowStatus == 2) {
+
+	}
+	
+	dc.Rectangle(10, 100, 20, 20); // x1, y1, x2, y2
 
 	// *********************************************************
 }
@@ -156,3 +231,41 @@ CMy2DAimLabDoc* CMy2DAimLabView::GetDocument() const // 디버그되지 않은 �
 
 
 // CMy2DAimLabView 메시지 처리기
+
+
+void CMy2DAimLabView::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// *********************************************************
+	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	// *********************************************************
+	
+	
+
+	// *********************************************************
+	CView::OnLButtonDown(nFlags, point);
+}
+
+
+
+
+
+void CMy2DAimLabView::refreshCirc()
+{
+	// *********************************************************
+	// TODO: 여기에 구현 코드 추가.
+	// *********************************************************
+	CClientDC dc(this);
+
+	for (int i = 0; i < circles.size(); i++) {
+		CString index;
+		index.Format(L"%d", i + 1);
+		CRect circPos(	circles[i].x - circRad,
+						circles[i].y - circRad,
+						circles[i].x + circRad,
+						circles[i].y + circRad	);
+
+		dc.Ellipse(circPos);
+		dc.DrawText(index, circPos, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	}
+	// *********************************************************
+}

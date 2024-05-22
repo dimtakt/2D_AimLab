@@ -51,12 +51,22 @@ public:
 	// *********************************************************
 
 	int windowStatus;
+	int circRad;
+	int score;
+	//int scoreAdd;
 
-	std::vector<CPoint> aimMatrix[5][5];
+	int genAmount;
+
+	std::vector<CPoint> circMatrix;
+	std::vector<CPoint> circles;
+	std::vector<bool> isExist;
+	std::vector<int> circ;
 
 
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 
 	// *********************************************************
+	void refreshCirc();
 };
 
 #ifndef _DEBUG  // 2D_AimLabView.cpp의 디버그 버전
