@@ -53,7 +53,6 @@ public:
 	int windowStatus;
 	int circRad;
 	int score;
-	//int scoreAdd;
 
 	int genAmount;
 
@@ -64,9 +63,9 @@ public:
 
 
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	void refreshCirc();
 
 	// *********************************************************
-	void refreshCirc();
 };
 
 #ifndef _DEBUG  // 2D_AimLabView.cpp의 디버그 버전

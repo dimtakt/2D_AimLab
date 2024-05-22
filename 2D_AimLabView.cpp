@@ -52,7 +52,6 @@ CMy2DAimLabView::CMy2DAimLabView() noexcept
 
 	circRad = 40;					// 원의 반지름
 	score = 0;						// 현재 점수
-	//scoreAdd = 0;					// 현재 원의 번호이자 추가 점수
 	genAmount = 3;					// 존재할 원 갯수
 
 
@@ -112,16 +111,7 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 		else if (i % 5 == 3) { circMatrix[i].y = rc.bottom / 2 + 100; }
 		else if (i % 5 == 4) { circMatrix[i].y = rc.bottom / 2 + 200; }
 	}
-
-	//for (int i = 0; i < 25; i++) {
-	//	if (isExist[i]) {
-	//		dc.Ellipse(	circMatrix[i].x - circRad,
-	//					circMatrix[i].y - circRad,
-	//					circMatrix[i].x + circRad,
-	//					circMatrix[i].y + circRad);
-	//	}
-	//}
-	
+		
 		
 	/**
 	*	windowStatus == 0 (현재 화면이 메인이라면)
@@ -171,6 +161,9 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 			}
 		}
 		refreshCirc();
+		refreshCirc();
+		refreshCirc();
+		refreshCirc();
 
 
 
@@ -184,7 +177,6 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 
 	}
 	
-	dc.Rectangle(10, 100, 20, 20); // x1, y1, x2, y2
 
 	// *********************************************************
 }
@@ -248,7 +240,7 @@ void CMy2DAimLabView::OnLButtonDown(UINT nFlags, CPoint point)
 
 
 
-
+// 원을 그려오는 함수
 void CMy2DAimLabView::refreshCirc()
 {
 	// *********************************************************
