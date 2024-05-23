@@ -29,6 +29,9 @@ BEGIN_MESSAGE_MAP(CMy2DAimLabView, CView)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CView::OnFilePrintPreview)
 	ON_WM_LBUTTONDOWN()
 	ON_WM_TIMER()
+	ON_COMMAND(gotoMain, &CMy2DAimLabView::Ongotomain)
+	ON_COMMAND(gotoGame, &CMy2DAimLabView::Ongotogame)
+	ON_COMMAND(gotoRank, &CMy2DAimLabView::Ongotorank)
 END_MESSAGE_MAP()
 
 // CMy2DAimLabView 생성/소멸
@@ -42,7 +45,7 @@ CMy2DAimLabView::CMy2DAimLabView() noexcept
 	isOpened = false;				// 실행하면 true로 바뀜. OnDraw 최초 호출시에만 작동되게 하기위함.
 
 	// 코드 작성 중 확인용으로 변경함. 0을 기본값으로 둘 것
-	windowStatus = 1;				// 현재 표시할 화면이 무엇인지 제어 (int)
+	windowStatus = 0;				// 현재 표시할 화면이 무엇인지 제어 (int)
 									// 예시)  0:메인 1:게임화면 2:랭킹..
 
 	circRad = 40;					// 원의 반지름
@@ -57,15 +60,15 @@ CMy2DAimLabView::CMy2DAimLabView() noexcept
 	circles;						// 랜덤 원의 정보가 인덱스를 통해 저장되는 곳 (vector<CPoint>)
 
 	isExist.resize(25);				// 랜덤 원이 해당 circMatrix 인덱스에 존재하는지 여부 (vector<bool>)
-	std::fill(isExist.begin(), isExist.end(), false);
+	
 
 	srand((unsigned)time(NULL));	// 랜덤 초기화
 
 
 
 	elapsed_time = 0;				// 게임 중 지난 시간 [나중에 수정]	0.1초단위
-	left_time = 600;				// 게임 중 남은 시간 [나중에 수정]	0.1초단위
-	left_time_Sub = 4;				// 오답 시 깎일 시간				0.1초단위
+	left_time = 600;				// 게임 중 남은 시간 [나중에 수정]	0.1초단위 : 60초
+	left_time_Sub = 50;				// 오답 시 깎일 시간				0.1초단위 : 1.0초
 
 	// *********************************************************
 }
@@ -99,6 +102,9 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 
 	CRect rc;
 	GetClientRect(&rc);
+
+
+
 
 	// OnDraw 최초 호출시에만 실행
 	if (!isOpened) {
@@ -153,18 +159,56 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 	// windowStatus == 1 (현재 화면이 게임화면이라면)
 	else if (windowStatus == 1) {
 		refreshScore();
+		refreshTime();
 		refreshCirc();
+
+		
+		// 상단 타이머 역할 바
+		CClientDC dc(this);
+		CRect rc;
+		GetClientRect(&rc);
+
+		CBrush timerBar(RGB(200, 255, 255));
+		dc.SelectObject(&timerBar);
+
+		dc.Rectangle(	rc.right / 2.0 - (rc.right / 2.0) * (left_time / 600.0), 0,
+						rc.right / 2.0 + (rc.right / 2.0) * (left_time / 600.0), 20);
+		
+		
+		// 게임이 종료되었다면
+		if (left_time <= 0) {
+			KillTimer(1);
+			
+			CString msg;
+			msg.Format(_T("게임이 종료되었습니다. 당신의 점수는 %d점입니다."), score);
+			MessageBox(msg, _T("알림"), MB_ICONINFORMATION);
+
+			// 파일 덧쓰기
+			std::fstream file("ranking.txt", std::ios::app);
+			
+			if (file.is_open()) {
+				file << "점수 : " << score << ", 플레이 시간 : " << elapsed_time << std::endl;
+
+				file.close(); // 파일 닫기
+			}
+			else {
+				MessageBox(_T("작업 실패"), _T("오류"), MB_ICONERROR);
+			}
+
+			// 값들 초기화
+			gameDataClear();
+
+			// 랭킹 화면으로 넘어감
+			isOpened = false;
+			windowStatus = 2;
+			Invalidate();
+		}
 	}
 
 	// windowStatus == 2 (현재 화면이 랭킹화면이라면)
 	else if (windowStatus == 2) {
-	
+		
 	}
-
-
-
-	
-
 
 	// *********************************************************
 }
@@ -224,76 +268,150 @@ void CMy2DAimLabView::OnLButtonDown(UINT nFlags, CPoint point)
 	CRect rc;
 	GetClientRect(&rc);
 
+
+
+	// windowStatus == 0 (현재 화면이 메인이라면)
+	if (windowStatus == 0) {
+
+		CRect rect1(rc.right / 2 - 500, rc.bottom / 2 + rc.bottom * 0.0 + 140,
+					rc.right / 2 + 500, rc.bottom / 2 + rc.bottom * 0.0 + 180);
+		bool isClickStart =	rc.right / 2 - 500 <= point.x &&
+							point.x <= rc.right / 2 + 500 &&
+							rc.bottom / 2 + rc.bottom * 0.0 + 140 <= point.y &&
+							point.y <= rc.bottom / 2 + rc.bottom * 0.0 + 180;
+		// 만약 게임시작 버튼을 눌렀다면
+		if (isClickStart) {
+			// 게임 시작 화면으로 넘어감
+			isOpened = false;
+			windowStatus = 1;
+			Invalidate();
+		}
+
+
+		CRect rect2(rc.right / 2 - 500, rc.bottom / 2 + rc.bottom * 0.0 + 190,
+					rc.right / 2 + 500, rc.bottom / 2 + rc.bottom * 0.0 + 230);
+		bool isClickRank =	rc.right / 2 - 500 <= point.x &&
+							point.x <= rc.right / 2 + 500 &&
+							rc.bottom / 2 + rc.bottom * 0.0 + 190 <= point.y &&
+							point.y <= rc.bottom / 2 + rc.bottom * 0.0 + 230;
+		// 만약 플레이 기록 버튼을 눌렀다면
+		if (isClickRank) {
+			// 플레이 기록 화면으로 넘어감
+			isOpened = false;
+			windowStatus = 2;
+			Invalidate();
+		}
+	}
+
+	// windowStatus == 1 (현재 화면이 게임화면이라면)
+	else if (windowStatus == 1) {
+
+		int tryCount = 0;		// 값이 circles.size() 에 도달한 경우 = 원을 클릭하지 않음 
 	
-	int tryCount = 0;		// 값이 circles.size() 에 도달한 경우 = 원을 클릭하지 않음 
 	
-	
-	for (int i = 0; i < circles.size(); i++) {
+		for (int i = 0; i < circles.size(); i++) {
 		
-		// 원을 클릭했는지의 조건 확인
-		double dist = sqrt(	pow(point.x - circles[i].x, 2) +
-							pow(point.y - circles[i].y, 2)	);
-		bool isCorrect = dist <= circRad;
+			// 원을 클릭했는지의 조건 확인
+			double dist = sqrt(	pow(point.x - circles[i].x, 2) +
+								pow(point.y - circles[i].y, 2)	);
+			bool isCorrect = dist <= circRad;
 
 		
-		// 만약에 원을 클릭했다면
-		if (isCorrect) {
+			// 만약에 원을 클릭했다면
+			if (isCorrect) {
 
-			// 클릭한 부분에 대응되는 isExist 내 원 존재여부 정보 반영하기 (지우기)
-			// 이거 안해서 아까 문제 생겼음
-			for (int j = 0; j < isExist.size(); j++) {
-				if (circles[i].x == circMatrix[j].x && circles[i].y == circMatrix[j].y) {
-					isExist[j] = false;
-					combo++;					// 연속하여 맞출 시 점수 증가량 증가
-					score += combo;
+				// 클릭한 부분에 대응되는 isExist 내 원 존재여부 정보 반영하기 (지우기)
+				// 이거 안해서 아까 문제 생겼음
+				for (int j = 0; j < isExist.size(); j++) {
+					if (circles[i].x == circMatrix[j].x && circles[i].y == circMatrix[j].y) {
+						isExist[j] = false;
+						combo++;					// 연속하여 맞출 시 점수 증가량 증가
+						score += combo;
+
+						// 맞출 시에 시간 추가 기능
+						if			(elapsed_time <= 100)	{ left_time += 3; }
+						else if		(elapsed_time <= 300)	{ left_time += 2; }
+						else if		(elapsed_time <= 500)	{ left_time += 1; }
+					
+						// 남은 시간은 최초 시간을 넘을 수 없음
+						if			(left_time > 600)		{ left_time = 600; }
+					}
 				}
-			}
-			// 클릭한 원 지움
-			circles.erase(i + circles.begin());
+				// 클릭한 원 지움
+				circles.erase(i + circles.begin());
 
 
 
 			
-			// 새로운 원 생성
-			for (int i = 0; i < 1; i++) {
-				int randNum = rand() % 25;
-				// 중복 자리에 원이 있으면 재생성 시도
-				if (isExist[randNum]) {
-					i--;
-				}
-				// 원 생성
-				else {
-					isExist[randNum] = true;
-					CPoint temp = circMatrix[randNum];
-					circles.push_back(temp);
+				// 새로운 원 생성
+				for (int i = 0; i < 1; i++) {
+					int randNum = rand() % 25;
+					// 중복 자리에 원이 있으면 재생성 시도
+					if (isExist[randNum]) {
+						i--;
+					}
+					// 원 생성
+					else {
+						isExist[randNum] = true;
+						CPoint temp = circMatrix[randNum];
+						circles.push_back(temp);
 
-					tryCount = 0; // 원을 클릭했음을 확인했으므로 0으로 초기화
-					break;
+						tryCount = 0; // 원을 클릭했음을 확인했으므로 0으로 초기화
+						break;
+					}
 				}
 			}
-		}
-		else {
-			tryCount++; // 원을 클릭한게 아닌것으로 추정되므로 +1, 3 이상이면 아래 if문으로 넘어감
+			else {
+				tryCount++; // 원을 클릭한게 아닌것으로 추정되므로 +1, 3 이상이면 아래 if문으로 넘어감
+			}
+
+			// 만약에 원을 클릭하지 않았다면
+			if (tryCount >= circles.size()) {
+				left_time -= left_time_Sub;		// 페널티로 남은 시간 감소
+				combo = 0;		// 점수 증가량 초기화
+				tryCount = 0;	// 원을 클릭한게 아닌것임을 확인했으므로 0으로 초기화
+			}
+
 		}
 
-		// 만약에 원을 클릭하지 않았다면
-		if (tryCount >= circles.size()) {
-			left_time -= left_time_Sub;		// 페널티로 남은 시간 감소
-			combo = 0;		// 점수 증가량 초기화
-			tryCount = 0;	// 원을 클릭한게 아닌것임을 확인했으므로 0으로 초기화
+		Invalidate();
+
+	}
+
+	// windowStatus == 2 (현재 화면이 랭킹화면이라면)
+	else if (windowStatus == 2) {
+		
+		CRect rect1(rc.right / 2 - 500, rc.bottom / 2 + rc.bottom * 0.0 + 140,
+					rc.right / 2 + 500, rc.bottom / 2 + rc.bottom * 0.0 + 180);
+		bool isClickStart =	rc.right / 2 - 500 <= point.x &&
+							point.x <= rc.right / 2 + 500 &&
+							rc.bottom / 2 + rc.bottom * 0.0 + 140 <= point.y &&
+							point.y <= rc.bottom / 2 + rc.bottom * 0.0 + 180;
+		// 만약 게임시작 버튼을 눌렀다면
+		if (isClickStart) {
+			// 게임 시작 화면으로 넘어감
+			isOpened = false;
+			windowStatus = 1;
+			Invalidate();
+		}
+
+		CRect rect2(rc.right / 2 - 500, rc.bottom / 2 + rc.bottom * 0.0 + 190,
+					rc.right / 2 + 500, rc.bottom / 2 + rc.bottom * 0.0 + 230);
+		bool isClickBack =	rc.right / 2 - 500 <= point.x &&
+							point.x <= rc.right / 2 + 500 &&
+							rc.bottom / 2 + rc.bottom * 0.0 + 190 <= point.y &&
+							point.y <= rc.bottom / 2 + rc.bottom * 0.0 + 230;
+		// 만약 뒤로가기 버튼을 눌렀다면
+		if (isClickBack) {
+			// 메인 화면으로 넘어감
+			isOpened = false;
+			windowStatus = 0;
+			Invalidate();
 		}
 
 	}
 
-	//CString scoreDisplay;
-	//scoreDisplay.Format(L"%d", score);
-
-	//CRect rect(50, 50, 250, 100);
-
-	//dc.DrawText(scoreDisplay, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
-
-
-	Invalidate();
+	
 
 	// *********************************************************
 	CView::OnLButtonDown(nFlags, point);
@@ -310,6 +428,7 @@ void CMy2DAimLabView::refreshCirc()
 	// 참고 :	주석처리한 부분은 원의 숫자를 표시하는 부분
 	//			주석 해제 시 숫자가 보임
 	// *********************************************************
+
 	CClientDC dc(this);
 
 	for (int i = 0; i < circles.size(); i++) {
@@ -334,16 +453,49 @@ void CMy2DAimLabView::refreshScore()
 
 	CClientDC dc(this);
 
-	
+
 	CString scoreDisplay;
+	CString comboDisplay;
 	scoreDisplay.Format(L"score : %d", score);
+	comboDisplay.Format(L"%d combo!!", combo);
 
-	CRect rect(50, 50, 250, 100);
+	CRect rect1(50, 50, 250, 70);
+	CRect rect2(50, 70, 250, 90);
 
-	dc.DrawText(scoreDisplay, rect, DT_SINGLELINE);
+	dc.DrawText(scoreDisplay, rect1, DT_SINGLELINE);
+	if (combo >= 5) {
+		dc.DrawText(comboDisplay, rect2, DT_SINGLELINE);
+	}
+
+	// *********************************************************
+}
+
+
+void CMy2DAimLabView::refreshTime()
+{
+	// *********************************************************
+	// TODO: 여기에 구현 코드 추가.
 	// *********************************************************
 
+	CClientDC dc(this);
+	CRect rc;
+	GetClientRect(&rc);
+
+
+	CString leftTimeDisplay;
+	CString elapsedTimeDisplay;
+	leftTimeDisplay.Format(L"Left Time : %d", left_time);
+	elapsedTimeDisplay.Format(L"Elapsed Time : %d", elapsed_time);
+
+	CRect rect1(rc.right - 250, 50, rc.right - 50, 70);
+	CRect rect2(rc.right - 250, 70, rc.right - 50, 90);
+
+	dc.DrawText(leftTimeDisplay, rect1, DT_SINGLELINE);
+	dc.DrawText(elapsedTimeDisplay, rect2, DT_SINGLELINE);
+
+	// *********************************************************
 }
+
 
 
 
@@ -361,11 +513,15 @@ void CMy2DAimLabView::window_Main()
 	CString mainLogo;
 	CString mainMessage1;
 	CString mainMessage2;
+	CString mainStartBtn;
+	CString mainRankBtn;
 
 	// 로고 출력
 	mainLogo.Format(L"2D AimLab");
-	mainMessage1.Format(L"게임을 시작하시려면 (단축키명) 버튼을 누르거나");
-	mainMessage2.Format(L"상단의(메뉴명) 메뉴를 통해 시작해주세요.");
+	mainMessage1.Format(L"게임을 시작하시려면 아래의 버튼을 누르거나");
+	mainMessage2.Format(L"상단 메뉴의 창 변경 - 게임 시작을 통해 시작해주세요.");
+	mainStartBtn.Format(L"게임 시작");
+	mainRankBtn.Format(L"플레이 기록");
 	// 게임 설명도 추가
 
 	CRect rect(		rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.3,
@@ -374,10 +530,18 @@ void CMy2DAimLabView::window_Main()
 					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 20);
 	CRect rect3(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 20,
 					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 40);
+	CRect rect4(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 140,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 180);
+	CRect rect5(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 190,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 230);
 
 	dc.DrawText(mainLogo, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 	dc.DrawText(mainMessage1, rect2, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 	dc.DrawText(mainMessage2, rect3, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	dc.Rectangle(rect4);
+	dc.DrawText(mainStartBtn, rect4, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	dc.Rectangle(rect5);
+	dc.DrawText(mainRankBtn, rect5, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 
 	// *********************************************************
 }
@@ -408,8 +572,10 @@ void CMy2DAimLabView::window_Game()
 		}
 	}
 
-	SetTimer(0, 100, NULL);  // ms단위. 즉 1000 당 1초
 	Invalidate();
+	SetTimer(1, 100, NULL);  // ms단위. 즉 1000 당 1초
+
+	
 
 	// *********************************************************
 }
@@ -421,8 +587,58 @@ void CMy2DAimLabView::window_Rank()
 	// TODO: 여기에 구현 코드 추가.
 	// *********************************************************
 
+	CClientDC dc(this);
+	CRect rc;
+	GetClientRect(&rc);
+
+	// 파일 불러오기
+	std::fstream file("ranking.txt", std::ios::in);
+
+	if (file.is_open()) {
+		std::string line;
 
 
+		CRect header(	rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0 - 240,
+						rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 - 220);
+		dc.DrawText(_T("===== 최근 플레이 기록 ====="), header, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+
+
+		int y = 0;
+		while (std::getline(file, line)) { // 한 줄씩 파일을 읽어옴
+
+			CRect rect(		rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0 - 200 + 20 * y,
+							rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 - 180 + 20 * y);
+
+			CString cstr(line.c_str());	// 문자열을 CString화 하려면 이렇게 해야한다함
+
+			dc.DrawText(cstr, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+
+			y++;
+		}
+		file.close(); // 파일 닫기
+	}
+	else {
+		MessageBox(_T("작업 실패"), _T("오류"), MB_ICONERROR);
+	}
+
+
+
+	CString mainStartBtn;
+	CString mainBackBtn;
+
+	mainStartBtn.Format(L"게임 시작");
+	mainBackBtn.Format(L"돌아가기");
+
+	CRect rect1(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 140,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 180);
+	CRect rect2(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 190,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 230);
+
+	dc.Rectangle(rect1);
+	dc.Rectangle(rect2);
+
+	dc.DrawText(mainStartBtn, rect1, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	dc.DrawText(mainBackBtn, rect2, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 
 	// *********************************************************
 }
@@ -434,10 +650,74 @@ void CMy2DAimLabView::OnTimer(UINT_PTR nIDEvent)
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 	// *********************************************************
 
+	
+	left_time -= 1;		// 0.1초마다 남은 시간 1씩 감소
+	elapsed_time += 1;	// 0.1초마다 경과 시간 1씩 증가
 
+	Invalidate();
 
 	// *********************************************************
 	CView::OnTimer(nIDEvent);
+}
+
+
+// 게임 도중 나올 시, 변수들을 초기화해주는 함수
+void CMy2DAimLabView::gameDataClear()
+{
+	// TODO: 여기에 구현 코드 추가.
+	score = 0;
+	combo = 0;
+	std::fill(isExist.begin(), isExist.end(), false);
+	left_time = 600;
+	elapsed_time = 0;
+	circles.clear();
+}
+
+
+
+
+
+
+
+// *********************************************************
+// *********************************************************
+// 이하는 메뉴용
+// *********************************************************
+// *********************************************************
+
+void CMy2DAimLabView::Ongotomain()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	gameDataClear();
+	KillTimer(1);
+
+	isOpened = false;
+	windowStatus = 0;
+	Invalidate();
+}
+
+
+void CMy2DAimLabView::Ongotogame()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	gameDataClear();
+	KillTimer(1);
+
+	isOpened = false;
+	windowStatus = 1;
+	Invalidate();
+}
+
+
+void CMy2DAimLabView::Ongotorank()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	gameDataClear();
+	KillTimer(1);
+
+	isOpened = false;
+	windowStatus = 2;
+	Invalidate();
 }
 
 

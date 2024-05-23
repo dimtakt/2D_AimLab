@@ -12,6 +12,7 @@
  #include <ctime>
 
  #include <fstream>		// 파일 입출력
+ #include <string>
 
 
 
@@ -67,12 +68,13 @@ public:
 	std::vector<CPoint> circMatrix;
 	std::vector<CPoint> circles;
 	std::vector<bool> isExist;
-	//std::vector<int> circ;
 
 
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	
+	void refreshScore();
+	void refreshTime();
 	void refreshCirc();
 
 	void window_Main();
@@ -83,8 +85,14 @@ public:
 	int left_time;
 	int left_time_Sub;
 
+	void gameDataClear();
+
+	// 메뉴
+	afx_msg void Ongotogame();
+	afx_msg void Ongotorank();
+	afx_msg void Ongotomain();
+
 	// *********************************************************
-	void refreshScore();
 };
 
 #ifndef _DEBUG  // 2D_AimLabView.cpp의 디버그 버전
