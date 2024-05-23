@@ -11,6 +11,9 @@
  #include <cstdlib>
  #include <ctime>
 
+ #include <fstream>		// 파일 입출력
+
+
 
 
 class CMy2DAimLabView : public CView
@@ -56,16 +59,20 @@ public:
 	int windowStatus;
 	int circRad;
 	int score;
+	int combo;
+	
 
 	int genAmount;
 
 	std::vector<CPoint> circMatrix;
 	std::vector<CPoint> circles;
 	std::vector<bool> isExist;
-	std::vector<int> circ;
+	//std::vector<int> circ;
 
 
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	
 	void refreshCirc();
 
 	void window_Main();
@@ -74,8 +81,10 @@ public:
 
 	int elapsed_time;
 	int left_time;
+	int left_time_Sub;
 
 	// *********************************************************
+	void refreshScore();
 };
 
 #ifndef _DEBUG  // 2D_AimLabView.cpp의 디버그 버전

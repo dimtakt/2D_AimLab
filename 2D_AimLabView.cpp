@@ -28,6 +28,7 @@ BEGIN_MESSAGE_MAP(CMy2DAimLabView, CView)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CView::OnFilePrintPreview)
 	ON_WM_LBUTTONDOWN()
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 // CMy2DAimLabView 생성/소멸
@@ -44,8 +45,15 @@ CMy2DAimLabView::CMy2DAimLabView() noexcept
 	windowStatus = 1;				// 현재 표시할 화면이 무엇인지 제어 (int)
 									// 예시)  0:메인 1:게임화면 2:랭킹..
 
+	circRad = 40;					// 원의 반지름
+	score = 0;						// 현재 점수
+	combo = 0;						// 콤보시스템, 점수증가량 (연속하여 맞출 시 1씩 증가, 틀릴 시 0으로 초기화)
+
+	genAmount = 3;					// 존재할 원 갯수
+
+
 	circMatrix;						// 랜덤 원이 생성될 위치 배열 정보 (vector<CPoint>)
-									// 실제 원의 정보를 담은 게 아님
+									// 실제 원의 정보를 담은 게 아님, 단순 위치 참고용
 	circles;						// 랜덤 원의 정보가 인덱스를 통해 저장되는 곳 (vector<CPoint>)
 
 	isExist.resize(25);				// 랜덤 원이 해당 circMatrix 인덱스에 존재하는지 여부 (vector<bool>)
@@ -53,12 +61,11 @@ CMy2DAimLabView::CMy2DAimLabView() noexcept
 
 	srand((unsigned)time(NULL));	// 랜덤 초기화
 
-	circRad = 40;					// 원의 반지름
-	score = 0;						// 현재 점수
-	genAmount = 3;					// 존재할 원 갯수
 
-	elapsed_time = 0;				// 게임 중 지난 시간 [나중에 수정]
-	left_time = 0;					// 게임 중 남은 시간 [나중에 수정]
+
+	elapsed_time = 0;				// 게임 중 지난 시간 [나중에 수정]	0.1초단위
+	left_time = 600;				// 게임 중 남은 시간 [나중에 수정]	0.1초단위
+	left_time_Sub = 4;				// 오답 시 깎일 시간				0.1초단위
 
 	// *********************************************************
 }
@@ -93,6 +100,7 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 	CRect rc;
 	GetClientRect(&rc);
 
+	// OnDraw 최초 호출시에만 실행
 	if (!isOpened) {
 		isOpened = true;
 
@@ -135,7 +143,28 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 		}
 	}
 
-	refreshCirc();
+
+
+	// windowStatus == 0 (현재 화면이 메인이라면)
+	if (windowStatus == 0) {
+
+	}
+
+	// windowStatus == 1 (현재 화면이 게임화면이라면)
+	else if (windowStatus == 1) {
+		refreshScore();
+		refreshCirc();
+	}
+
+	// windowStatus == 2 (현재 화면이 랭킹화면이라면)
+	else if (windowStatus == 2) {
+	
+	}
+
+
+
+	
+
 
 	// *********************************************************
 }
@@ -189,12 +218,19 @@ void CMy2DAimLabView::OnLButtonDown(UINT nFlags, CPoint point)
 	// *********************************************************
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 	// *********************************************************
+
+	CClientDC dc(this);
+
+	CRect rc;
+	GetClientRect(&rc);
+
 	
 	int tryCount = 0;		// 값이 circles.size() 에 도달한 경우 = 원을 클릭하지 않음 
 	
 	
 	for (int i = 0; i < circles.size(); i++) {
 		
+		// 원을 클릭했는지의 조건 확인
 		double dist = sqrt(	pow(point.x - circles[i].x, 2) +
 							pow(point.y - circles[i].y, 2)	);
 		bool isCorrect = dist <= circRad;
@@ -206,15 +242,17 @@ void CMy2DAimLabView::OnLButtonDown(UINT nFlags, CPoint point)
 			// 클릭한 부분에 대응되는 isExist 내 원 존재여부 정보 반영하기 (지우기)
 			// 이거 안해서 아까 문제 생겼음
 			for (int j = 0; j < isExist.size(); j++) {
-				if (circles[i].x == circMatrix[j].x && circles[i].y == circMatrix[j].y)
+				if (circles[i].x == circMatrix[j].x && circles[i].y == circMatrix[j].y) {
 					isExist[j] = false;
+					combo++;					// 연속하여 맞출 시 점수 증가량 증가
+					score += combo;
+				}
 			}
 			// 클릭한 원 지움
 			circles.erase(i + circles.begin());
 
 
 
-			score += i + 1;
 			
 			// 새로운 원 생성
 			for (int i = 0; i < 1; i++) {
@@ -235,18 +273,27 @@ void CMy2DAimLabView::OnLButtonDown(UINT nFlags, CPoint point)
 			}
 		}
 		else {
-			tryCount++; // 원을 클릭한게 아닌것으로 추정되므로 +1
+			tryCount++; // 원을 클릭한게 아닌것으로 추정되므로 +1, 3 이상이면 아래 if문으로 넘어감
 		}
 
 		// 만약에 원을 클릭하지 않았다면
 		if (tryCount >= circles.size()) {
-			left_time -= 50;
-			tryCount = 0;
+			left_time -= left_time_Sub;		// 페널티로 남은 시간 감소
+			combo = 0;		// 점수 증가량 초기화
+			tryCount = 0;	// 원을 클릭한게 아닌것임을 확인했으므로 0으로 초기화
 		}
 
-		Invalidate();
 	}
-	
+
+	//CString scoreDisplay;
+	//scoreDisplay.Format(L"%d", score);
+
+	//CRect rect(50, 50, 250, 100);
+
+	//dc.DrawText(scoreDisplay, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+
+
+	Invalidate();
 
 	// *********************************************************
 	CView::OnLButtonDown(nFlags, point);
@@ -279,6 +326,24 @@ void CMy2DAimLabView::refreshCirc()
 	// *********************************************************
 }
 
+void CMy2DAimLabView::refreshScore()
+{
+	// *********************************************************
+	// TODO: 여기에 구현 코드 추가.
+	// *********************************************************
+
+	CClientDC dc(this);
+
+	
+	CString scoreDisplay;
+	scoreDisplay.Format(L"score : %d", score);
+
+	CRect rect(50, 50, 250, 100);
+
+	dc.DrawText(scoreDisplay, rect, DT_SINGLELINE);
+	// *********************************************************
+
+}
 
 
 
@@ -324,6 +389,8 @@ void CMy2DAimLabView::window_Game()
 	// TODO: 여기에 구현 코드 추가.
 	// *********************************************************
 
+	MessageBox(_T("게임을 시작합니다."), _T("알림"), MB_ICONINFORMATION);
+
 	int numOrder = 0;		// 클릭해야 하는 숫자
 
 	// 최초 원 생성
@@ -340,7 +407,9 @@ void CMy2DAimLabView::window_Game()
 			circles.push_back(temp);
 		}
 	}
-	refreshCirc();
+
+	SetTimer(0, 100, NULL);  // ms단위. 즉 1000 당 1초
+	Invalidate();
 
 	// *********************************************************
 }
@@ -357,3 +426,18 @@ void CMy2DAimLabView::window_Rank()
 
 	// *********************************************************
 }
+
+
+void CMy2DAimLabView::OnTimer(UINT_PTR nIDEvent)
+{
+	// *********************************************************
+	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	// *********************************************************
+
+
+
+	// *********************************************************
+	CView::OnTimer(nIDEvent);
+}
+
+
