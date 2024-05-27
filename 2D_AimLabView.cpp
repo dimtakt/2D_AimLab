@@ -627,7 +627,7 @@ void CMy2DAimLabView::window_Rank()
 
 
 	CRect info(	rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0 + 110,
-					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 130);
+				rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 130);
 	dc.DrawText(_T("플레이 기록은 메뉴의 기록 데이터 - 저장하기 불러오기를 통해 외부 파일로의 저장 및 읽기가 가능합니다."), info, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 
 
@@ -744,7 +744,7 @@ void CMy2DAimLabView::Ondatasave()
 			file << playHistory_score[i] << " " << playHistory_elapsedTime[i] << std::endl;
 		}
 		file.close(); // 파일 닫기
-
+		MessageBox(_T("파일 저장에 성공했습니다."), _T("알림"), MB_ICONINFORMATION);
 	}
 	else {
 		MessageBox(_T("파일 저장에 실패했습니다."), _T("오류"), MB_ICONERROR);
@@ -768,6 +768,7 @@ void CMy2DAimLabView::Ondataload()
 			playHistory_elapsedTime.push_back(loadElapsedTime);
 		}
 		file.close();
+		MessageBox(_T("파일 불러오기에 성공했습니다."), _T("알림"), MB_ICONINFORMATION);
 	}
 	else {
 		MessageBox(_T("파일 불러오기에 실패했습니다."), _T("오류"), MB_ICONERROR);
@@ -791,4 +792,6 @@ void CMy2DAimLabView::Ondataclear()
 	if (windowStatus == 2) {
 		Ongotorank();
 	}
+
+	MessageBox(_T("로컬 플레이기록이 초기화되었습니다."), _T("알림"), MB_ICONINFORMATION);
 }
