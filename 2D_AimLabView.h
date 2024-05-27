@@ -69,6 +69,9 @@ public:
 	std::vector<CPoint> circles;
 	std::vector<bool> isExist;
 
+	std::vector<int> playHistory_elapsedTime;
+	std::vector<int> playHistory_score;
+
 
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
@@ -88,11 +91,15 @@ public:
 	void gameDataClear();
 
 	// 메뉴
+	afx_msg void Ongotomain();
 	afx_msg void Ongotogame();
 	afx_msg void Ongotorank();
-	afx_msg void Ongotomain();
+
+	afx_msg void Ondatasave();
+	afx_msg void Ondataload();
 
 	// *********************************************************
+	afx_msg void Ondataclear();
 };
 
 #ifndef _DEBUG  // 2D_AimLabView.cpp의 디버그 버전

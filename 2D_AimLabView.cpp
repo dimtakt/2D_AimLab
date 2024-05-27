@@ -32,6 +32,9 @@ BEGIN_MESSAGE_MAP(CMy2DAimLabView, CView)
 	ON_COMMAND(gotoMain, &CMy2DAimLabView::Ongotomain)
 	ON_COMMAND(gotoGame, &CMy2DAimLabView::Ongotogame)
 	ON_COMMAND(gotoRank, &CMy2DAimLabView::Ongotorank)
+	ON_COMMAND(dataSave, &CMy2DAimLabView::Ondatasave)
+	ON_COMMAND(dataLoad, &CMy2DAimLabView::Ondataload)
+	ON_COMMAND(dataClear, &CMy2DAimLabView::Ondataclear)
 END_MESSAGE_MAP()
 
 // CMy2DAimLabView 생성/소멸
@@ -60,6 +63,9 @@ CMy2DAimLabView::CMy2DAimLabView() noexcept
 	circles;						// 랜덤 원의 정보가 인덱스를 통해 저장되는 곳 (vector<CPoint>)
 
 	isExist.resize(25);				// 랜덤 원이 해당 circMatrix 인덱스에 존재하는지 여부 (vector<bool>)
+	
+	playHistory_elapsedTime;		// 플레이 기록(경과 시간)이 저장될 변수 (vector<int>)
+	playHistory_score;				// 플레이 기록(획득 점수)이 저장될 변수 (vector<int>)
 	
 
 	srand((unsigned)time(NULL));	// 랜덤 초기화
@@ -183,17 +189,9 @@ void CMy2DAimLabView::OnDraw(CDC* /*pDC*/)
 			msg.Format(_T("게임이 종료되었습니다. 당신의 점수는 %d점입니다."), score);
 			MessageBox(msg, _T("알림"), MB_ICONINFORMATION);
 
-			// 파일 덧쓰기
-			std::fstream file("ranking.txt", std::ios::app);
-			
-			if (file.is_open()) {
-				file << "점수 : " << score << ", 플레이 시간 : " << elapsed_time << std::endl;
-
-				file.close(); // 파일 닫기
-			}
-			else {
-				MessageBox(_T("작업 실패"), _T("오류"), MB_ICONERROR);
-			}
+			// 내부 변수에 플레이기록 담기
+			playHistory_elapsedTime.push_back(elapsed_time);
+			playHistory_score.push_back(score);
 
 			// 값들 초기화
 			gameDataClear();
@@ -513,6 +511,8 @@ void CMy2DAimLabView::window_Main()
 	CString mainLogo;
 	CString mainMessage1;
 	CString mainMessage2;
+	CString mainHowMessage1;
+	CString mainHowMessage2;
 	CString mainStartBtn;
 	CString mainRankBtn;
 
@@ -520,6 +520,8 @@ void CMy2DAimLabView::window_Main()
 	mainLogo.Format(L"2D AimLab");
 	mainMessage1.Format(L"게임을 시작하시려면 아래의 버튼을 누르거나");
 	mainMessage2.Format(L"상단 메뉴의 창 변경 - 게임 시작을 통해 시작해주세요.");
+	mainHowMessage1.Format(L"게임 방법은 AimLab과 같이, 화면에 보이는 원을 연속해서 클릭하면 됩니다.");
+	mainHowMessage2.Format(L"원을 누르지 않으면 콤보끊김, 제한시간 감소 등의 페널티가 있습니다.");
 	mainStartBtn.Format(L"게임 시작");
 	mainRankBtn.Format(L"플레이 기록");
 	// 게임 설명도 추가
@@ -530,6 +532,12 @@ void CMy2DAimLabView::window_Main()
 					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 20);
 	CRect rect3(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 20,
 					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 40);
+	CRect rectHow1(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 60,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 80);
+	CRect rectHow2(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 80,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 100);
+
+
 	CRect rect4(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 140,
 					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 180);
 	CRect rect5(	rc.right / 2 - 500,	rc.bottom / 2 + rc.bottom * 0.0 + 190,
@@ -538,6 +546,8 @@ void CMy2DAimLabView::window_Main()
 	dc.DrawText(mainLogo, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 	dc.DrawText(mainMessage1, rect2, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 	dc.DrawText(mainMessage2, rect3, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	dc.DrawText(mainHowMessage1, rectHow1, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	dc.DrawText(mainHowMessage2, rectHow2, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 	dc.Rectangle(rect4);
 	dc.DrawText(mainStartBtn, rect4, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 	dc.Rectangle(rect5);
@@ -594,32 +604,31 @@ void CMy2DAimLabView::window_Rank()
 	// 파일 불러오기
 	std::fstream file("ranking.txt", std::ios::in);
 
-	if (file.is_open()) {
-		std::string line;
 
 
-		CRect header(	rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0 - 240,
-						rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 - 220);
-		dc.DrawText(_T("===== 최근 플레이 기록 ====="), header, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	CRect header(	rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0 - 240,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 - 220);
+	dc.DrawText(_T("===== 최근 플레이 기록 ====="), header, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 
 
-		int y = 0;
-		while (std::getline(file, line)) { // 한 줄씩 파일을 읽어옴
+		
+	for (int i = 0; i < playHistory_elapsedTime.size(); i++) {
+			
+		CRect rect(	rc.right / 2 - 500, rc.bottom / 2 - rc.bottom * 0.0 - 200 + 20 * i,
+					rc.right / 2 + 500, rc.bottom / 2 + rc.bottom * 0.0 - 180 + 20 * i);
 
-			CRect rect(		rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0 - 200 + 20 * y,
-							rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 - 180 + 20 * y);
+		CString text;
+		text.Format(L"플레이 시간 : %d, 점수 : %d", playHistory_elapsedTime[i], playHistory_score[i]);
 
-			CString cstr(line.c_str());	// 문자열을 CString화 하려면 이렇게 해야한다함
+		dc.DrawText(text, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 
-			dc.DrawText(cstr, rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
-
-			y++;
-		}
-		file.close(); // 파일 닫기
 	}
-	else {
-		MessageBox(_T("작업 실패"), _T("오류"), MB_ICONERROR);
-	}
+
+
+
+	CRect info(	rc.right / 2 - 500,	rc.bottom / 2 - rc.bottom * 0.0 + 110,
+					rc.right / 2 + 500,	rc.bottom / 2 + rc.bottom * 0.0 + 130);
+	dc.DrawText(_T("플레이 기록은 메뉴의 기록 데이터 - 저장하기 불러오기를 통해 외부 파일로의 저장 및 읽기가 가능합니다."), info, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 
 
 
@@ -721,3 +730,65 @@ void CMy2DAimLabView::Ongotorank()
 }
 
 
+
+// 플레이 기록을 외부 데이터로 저장
+void CMy2DAimLabView::Ondatasave()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+
+	std::fstream file("ranking.txt", std::ios::out);
+
+	if (file.is_open()) {
+		
+		for (int i = 0; i < playHistory_elapsedTime.size(); i++) {
+			file << playHistory_score[i] << " " << playHistory_elapsedTime[i] << std::endl;
+		}
+		file.close(); // 파일 닫기
+
+	}
+	else {
+		MessageBox(_T("파일 저장에 실패했습니다."), _T("오류"), MB_ICONERROR);
+	}
+}
+
+// 플레이 기록을 외부 데이터로부터 불러오기
+void CMy2DAimLabView::Ondataload()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+
+	std::fstream file("ranking.txt", std::ios::in);
+
+	if (file.is_open()) {
+		int loadScore, loadElapsedTime;
+		playHistory_score.clear();
+		playHistory_elapsedTime.clear();
+
+		while (file >> loadScore >> loadElapsedTime) {
+			playHistory_score.push_back(loadScore);
+			playHistory_elapsedTime.push_back(loadElapsedTime);
+		}
+		file.close();
+	}
+	else {
+		MessageBox(_T("파일 불러오기에 실패했습니다."), _T("오류"), MB_ICONERROR);
+	}
+
+	// 만약 현재 창이 플레이기록 창이라면, 불러온 데이터를 볼 수 있게 새로고침함
+	if (windowStatus == 2) {
+		Ongotorank();
+	}
+}
+
+
+void CMy2DAimLabView::Ondataclear()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+
+	playHistory_score.clear();
+	playHistory_elapsedTime.clear();
+
+	// 만약 현재 창이 플레이기록 창이라면, 불러온 데이터를 볼 수 있게 새로고침함
+	if (windowStatus == 2) {
+		Ongotorank();
+	}
+}
